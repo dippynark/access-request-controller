@@ -1,0 +1,7 @@
+domain: lukeaddison.co.uk
+repo: github.com/dippynark/access-request-controller
+resources:
+- group: iam
+  kind: AccessRequest
+  version: v1alpha1
+version: "2"

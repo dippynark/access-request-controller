@@ -1,0 +1,24 @@
+# permissions for end users to edit accessrequests.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: accessrequest-editor-role
+rules:
+- apiGroups:
+  - iam.lukeaddison.co.uk
+  resources:
+  - accessrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - iam.lukeaddison.co.uk
+  resources:
+  - accessrequests/status
+  verbs:
+  - get
