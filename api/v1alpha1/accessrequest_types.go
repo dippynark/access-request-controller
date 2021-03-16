@@ -25,6 +25,7 @@ import (
 // AccessRequestSpec defines the desired state of AccessRequest
 type AccessRequestSpec struct {
 	// Subjects holds references to the objects the role applies to.
+	// +optional
 	Subjects []rbacv1.Subject `json:"subjects,omitempty"`
 	// RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.
 	RoleRef rbacv1.RoleRef `json:"roleRef"`
@@ -37,6 +38,7 @@ type AccessRequestStatus struct {
 	CreatedBy string `json:"createdBy,omitempty"`
 
 	// Signifies who approved the accessrequest
+	// +optional
 	ApprovedBy string `json:"approvedBy,omitempty"`
 
 	// Represents time when the accessrequest was approved.

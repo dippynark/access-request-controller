@@ -3,12 +3,14 @@
 ```sh
 kubebuilder init --domain lukeaddison.co.uk
 kubebuilder create api --group iam --version v1alpha1 --kind AccessRequest
+
+find . \( -type d -name .git -prune \) -o -type f -print0 | xargs -0 sed -i 's/lukeaddison\.co\.uk/dippynark\.co\.uk/g; s/lukeaddison-co-uk/dippynark-co-uk/g'
 ```
 
 ## API
 
 ```yaml
-apiVersion: v1
+apiVersion: iam.lukeaddison.co.uk/v1alpha1
 kind: AccessRequest
 metadata:
   name: developer@org.com:pod-reader
@@ -38,7 +40,7 @@ status:
 ```
 
 ```yaml
-apiVersion: v1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: test
