@@ -1,4 +1,4 @@
-domain: lukeaddison.co.uk
+domain: dippynark.co.uk
 repo: github.com/dippynark/access-request-controller
 resources:
 - group: iam

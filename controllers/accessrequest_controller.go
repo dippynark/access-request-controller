@@ -40,8 +40,8 @@ type AccessRequestReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=iam.lukeaddison.co.uk,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=iam.lukeaddison.co.uk,resources=accessrequests/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=iam.dippynark.co.uk,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=iam.dippynark.co.uk,resources=accessrequests/status,verbs=get;update;patch
 
 func (r *AccessRequestReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, rerr error) {
 	ctx := context.Background()

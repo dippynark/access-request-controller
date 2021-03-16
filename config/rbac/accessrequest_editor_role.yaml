@@ -5,7 +5,7 @@ metadata:
   name: accessrequest-editor-role
 rules:
 - apiGroups:
-  - iam.lukeaddison.co.uk
+  - iam.dippynark.co.uk
   resources:
   - accessrequests
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - iam.lukeaddison.co.uk
+  - iam.dippynark.co.uk
   resources:
   - accessrequests/status
   verbs:
