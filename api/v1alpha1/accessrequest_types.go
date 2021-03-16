@@ -24,6 +24,8 @@ import (
 
 // AccessRequestSpec defines the desired state of AccessRequest
 type AccessRequestSpec struct {
+	// Approved specifies whether the accessrequest has been approved
+	Approved bool `json:"approved,omitempty"`
 	// Subjects holds references to the objects the role applies to.
 	// +optional
 	Subjects []rbacv1.Subject `json:"subjects,omitempty"`

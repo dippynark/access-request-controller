@@ -11,25 +11,25 @@ import (
 	v1 "k8s.io/api/admission/v1"
 	"k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	// TODO: try this library to see if it generates correct json patch
 	// https://github.com/mattbaird/jsonpatch
 )
 
 var (
-	certFile     string
-	keyFile      string
-	port         int
-	sidecarImage string
+	certFile string
+	keyFile  string
+	port     int
 )
 
 // CmdWebhook is used by agnhost Cobra.
 var CmdWebhook = &cobra.Command{
 	Use:   "webhook",
-	Short: "Starts a HTTP server, useful for testing MutatingAdmissionWebhook and ValidatingAdmissionWebhook",
-	Long: `Starts a HTTP server, useful for testing MutatingAdmissionWebhook and ValidatingAdmissionWebhook.
-After deploying it to Kubernetes cluster, the Administrator needs to create a ValidatingWebhookConfiguration
-in the Kubernetes cluster to register remote webhook admission controllers.`,
+	Short: "Starts a HTTP server for AccessRequest MutatingAdmissionWebhook",
+	Long: `Starts a HTTP serverfor AccessRequest MutatingAdmissionWebhook. Attempts to approve
+AccessRequests will check user permissions before setting status appropriately.`,
 	Args: cobra.MaximumNArgs(0),
 	Run:  main,
 }
@@ -41,8 +41,6 @@ func init() {
 		"File containing the default x509 private key matching --tls-cert-file.")
 	CmdWebhook.Flags().IntVar(&port, "port", 443,
 		"Secure port that the webhook listens on")
-	CmdWebhook.Flags().StringVar(&sidecarImage, "sidecar-image", "",
-		"Image to be used as the injected sidecar")
 }
 
 // admitv1beta1Func handles a v1beta1 admission
@@ -72,8 +70,7 @@ func delegateV1beta1AdmitToV1(f admitv1Func) admitv1beta1Func {
 	}
 }
 
-// serve handles the http portion of a request prior to handing to an admit
-// function
+// serve handles the http portion of a request prior to handing to an admit function
 func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 	var body []byte
 	if r.Body != nil {
@@ -82,7 +79,7 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 		}
 	}
 
-	// verify the content type is accurate
+	// Verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 		klog.Errorf("contentType=%s, expect application/json", contentType)
@@ -144,23 +141,37 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 	}
 }
 
-func serveMutatePods(w http.ResponseWriter, r *http.Request) {
-	serve(w, r, newDelegateToV1AdmitHandler(mutatePods))
+type serveMutateAccessRequestHandler struct {
+	clientset *kubernetes.Clientset
+}
+
+func (h *serveMutateAccessRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	serve(w, r, newDelegateToV1AdmitHandler(h.mutateAccessRequest))
 }
 
 func main(cmd *cobra.Command, args []string) {
+
 	config := Config{
 		CertFile: certFile,
 		KeyFile:  keyFile,
 	}
 
-	http.HandleFunc("/mutating-pods", serveMutatePods)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		panic(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	http.Handle("/mutate", &serveMutateAccessRequestHandler{clientset: clientset})
 	http.HandleFunc("/readyz", func(w http.ResponseWriter, req *http.Request) { w.Write([]byte("ok")) })
 	server := &http.Server{
 		Addr:      fmt.Sprintf(":%d", port),
 		TLSConfig: configTLS(config),
 	}
-	err := server.ListenAndServeTLS("", "")
+	err = server.ListenAndServeTLS("", "")
 	if err != nil {
 		panic(err)
 	}
