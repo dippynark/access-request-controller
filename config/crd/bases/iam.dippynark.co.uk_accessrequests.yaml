@@ -32,6 +32,9 @@ spec:
           spec:
             description: AccessRequestSpec defines the desired state of AccessRequest
             properties:
+              approved:
+                description: Approved specifies whether the accessrequest has been approved
+                type: boolean
               roleRef:
                 description: RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.
                 properties:
