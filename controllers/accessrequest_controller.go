@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	iamv1alpha1 "github.com/dippynark/access-request-controller/api/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
@@ -43,8 +46,7 @@ type AccessRequestReconciler struct {
 // +kubebuilder:rbac:groups=iam.dippynark.co.uk,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=iam.dippynark.co.uk,resources=accessrequests/status,verbs=get;update;patch
 
-func (r *AccessRequestReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, rerr error) {
-	ctx := context.Background()
+func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
 	log := r.Log.WithValues("accessrequest", req.NamespacedName)
 
 	// Fetch the accessrequest instance
@@ -57,7 +59,7 @@ func (r *AccessRequestReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, re
 	}
 
 	// Initialize the patch helper
-	patchHelper, err := patch.NewHelper(accessRequest, r)
+	patchHelper, err := patch.NewHelper(accessRequest, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -74,14 +76,14 @@ func (r *AccessRequestReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, re
 	return r.reconcile(ctx, accessRequest)
 }
 
-func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest, subject rbacv1.Subject) (ctrl.Result, error) {
+func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (ctrl.Result, error) {
 
 	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getRoleBindingName(accessRequest, subject),
+			Name:      accessRequest.Name,
 			Namespace: accessRequest.Namespace,
 		},
-		Subjects: []rbacv1.Subject{subject},
+		Subjects: accessRequest.Spec.Subjects,
 		RoleRef:  accessRequest.Spec.RoleRef,
 	}
 	if err := controllerutil.SetControllerReference(accessRequest, roleBinding, r.Scheme); err != nil {
@@ -93,25 +95,37 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessR
 
 func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (ctrl.Result, error) {
 
-	// Check approval time
+	// Default all conditions to unknown
+	accessRequest.Status.Conditions = ensureAccessRequestConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestApproved, v1.ConditionUnknown, "", "")
+	accessRequest.Status.Conditions = ensureAccessRequestConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestComplete, v1.ConditionUnknown, "", "")
 
-	for _, subject := range accessRequest.Spec.Subjects {
-
-		roleBinding := &rbacv1.RoleBinding{}
-		err := r.Get(ctx, types.NamespacedName{
-			Namespace: accessRequest.Namespace,
-			Name:      getRoleBindingName(accessRequest, subject),
-		}, roleBinding)
-		if k8serrors.IsNotFound(err) {
-			return r.createRoleBinding(ctx, accessRequest, subject)
-		}
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
+	// Check approval
+	if !accessRequest.Spec.Approved {
+		return ctrl.Result{}, nil
 	}
 
-	// Set completion time and condition
+	// This situation should be ensured by the mutating admission webhook and checked by the
+	// validating admission webhook
+	if accessRequest.Status.ApprovedBy == "" || accessRequest.Status.ApprovalTime.IsZero() {
+		return ctrl.Result{}, errors.New("accessrequest is approved but approvedBy and approvalTime status fields are not set")
+	}
+	accessRequest.Status.Conditions = ensureAccessRequestConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestApproved, v1.ConditionTrue, "AccessRequestApproved", fmt.Sprintf("AccessRequest approved by %s", accessRequest.Status.ApprovedBy))
+
+	roleBinding := &rbacv1.RoleBinding{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: accessRequest.Namespace,
+		Name:      accessRequest.Name,
+	}, roleBinding)
+	if k8serrors.IsNotFound(err) {
+		return r.createRoleBinding(ctx, accessRequest)
+	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	currentTime := metav1.Now()
+	accessRequest.Status.CompletionTime = &currentTime
+	accessRequest.Status.Conditions = ensureAccessRequestConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestComplete, v1.ConditionTrue, "RoleBindingCreated", fmt.Sprintf("RoleBinding %s created", accessRequest.Name))
 
 	return ctrl.Result{}, nil
 }

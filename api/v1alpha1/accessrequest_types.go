@@ -79,19 +79,19 @@ type AccessRequestList struct {
 	Items           []AccessRequest `json:"items"`
 }
 
-type AccessRequestType string
+type AccessRequestConditionType string
 
 // These are valid conditions of an accessrequest.
 const (
 	// AccessRequestApproved means the accessrequest has been approved.
-	AccessRequestApproved AccessRequestType = "Approved"
+	AccessRequestApproved AccessRequestConditionType = "Approved"
 	// AccessRequestComplete means the accessrequest has completed its lifecycle.
-	AccessRequestComplete AccessRequestType = "Complete"
+	AccessRequestComplete AccessRequestConditionType = "Complete"
 )
 
 type AccessRequestCondition struct {
 	// Type of accessrequest condition, Approved or Complete.
-	Type AccessRequestType `json:"type"`
+	Type AccessRequestConditionType `json:"type"`
 	// Status of the condition, one of True, False, Unknown.
 	Status v1.ConditionStatus `json:"status"`
 	// Last time the condition was checked.

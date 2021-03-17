@@ -1,12 +1,11 @@
-package webhook
+package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"github.com/spf13/cobra"
 
 	v1 "k8s.io/api/admission/v1"
 	"k8s.io/api/admission/v1beta1"
@@ -24,23 +23,46 @@ var (
 	port     int
 )
 
-// CmdWebhook is used by agnhost Cobra.
-var CmdWebhook = &cobra.Command{
-	Use:   "webhook",
-	Short: "Starts a HTTP server for AccessRequest MutatingAdmissionWebhook",
-	Long: `Starts a HTTP serverfor AccessRequest MutatingAdmissionWebhook. Attempts to approve
-AccessRequests will check user permissions before setting status appropriately.`,
-	Args: cobra.MaximumNArgs(0),
-	Run:  main,
+func main() {
+
+	flag.StringVar(&certFile, "tls-cert-file", "", "File containing the default x509 Certificate for HTTPS. (CA cert, if any, concatenated after server cert).")
+	flag.StringVar(&keyFile, "tls-private-key-file", "", "File containing the default x509 private key matching --tls-cert-file.")
+	flag.IntVar(&port, "port", 9443, "Secure port that the webhook listens on")
+	flag.Parse()
+
+	restConfig, err := clientcmd.BuildConfigFromFlags("", "")
+	if err != nil {
+		panic(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	http.Handle("/mutate", &serveMutateAccessRequestHandler{clientset: clientset})
+	http.HandleFunc("/readyz", func(w http.ResponseWriter, req *http.Request) { w.Write([]byte("ok")) })
+
+	config := Config{
+		CertFile: certFile,
+		KeyFile:  keyFile,
+	}
+
+	server := &http.Server{
+		Addr:      fmt.Sprintf(":%d", port),
+		TLSConfig: configTLS(config),
+	}
+	err = server.ListenAndServeTLS("", "")
+	if err != nil {
+		panic(err)
+	}
 }
 
-func init() {
-	CmdWebhook.Flags().StringVar(&certFile, "tls-cert-file", "",
-		"File containing the default x509 Certificate for HTTPS. (CA cert, if any, concatenated after server cert).")
-	CmdWebhook.Flags().StringVar(&keyFile, "tls-private-key-file", "",
-		"File containing the default x509 private key matching --tls-cert-file.")
-	CmdWebhook.Flags().IntVar(&port, "port", 443,
-		"Secure port that the webhook listens on")
+type serveMutateAccessRequestHandler struct {
+	clientset *kubernetes.Clientset
+}
+
+func (h *serveMutateAccessRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	serve(w, r, newDelegateToV1AdmitHandler(h.mutateAccessRequest))
 }
 
 // admitv1beta1Func handles a v1beta1 admission
@@ -138,41 +160,5 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(respBytes); err != nil {
 		klog.Error(err)
-	}
-}
-
-type serveMutateAccessRequestHandler struct {
-	clientset *kubernetes.Clientset
-}
-
-func (h *serveMutateAccessRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	serve(w, r, newDelegateToV1AdmitHandler(h.mutateAccessRequest))
-}
-
-func main(cmd *cobra.Command, args []string) {
-
-	config := Config{
-		CertFile: certFile,
-		KeyFile:  keyFile,
-	}
-
-	restConfig, err := clientcmd.BuildConfigFromFlags("", "")
-	if err != nil {
-		panic(err)
-	}
-	clientset, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	http.Handle("/mutate", &serveMutateAccessRequestHandler{clientset: clientset})
-	http.HandleFunc("/readyz", func(w http.ResponseWriter, req *http.Request) { w.Write([]byte("ok")) })
-	server := &http.Server{
-		Addr:      fmt.Sprintf(":%d", port),
-		TLSConfig: configTLS(config),
-	}
-	err = server.ListenAndServeTLS("", "")
-	if err != nil {
-		panic(err)
 	}
 }

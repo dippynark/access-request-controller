@@ -3,6 +3,7 @@
 ```sh
 kubebuilder init --domain dippynark.co.uk
 kubebuilder create api --group iam --version v1alpha1 --kind AccessRequest
+kubebuilder create webhook --group iam --version v1alpha1 --kind AccessRequest --defaulting --programmatic-validation
 ```
 
 ## API

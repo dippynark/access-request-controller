@@ -8,7 +8,7 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: manager
   namespace: system
   labels:
     control-plane: controller-manager
@@ -22,6 +22,7 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
+      terminationGracePeriodSeconds: 10
       containers:
       - command:
         - /manager
@@ -30,10 +31,6 @@ spec:
         image: controller:latest
         name: manager
         resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
           requests:
             cpu: 100m
             memory: 20Mi
-      terminationGracePeriodSeconds: 10

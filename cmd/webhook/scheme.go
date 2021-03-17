@@ -1,4 +1,4 @@
-package webhook
+package main
 
 import (
 	iamv1alpha1 "github.com/dippynark/access-request-controller/api/v1alpha1"
@@ -19,7 +19,6 @@ func init() {
 }
 
 func addToScheme(scheme *runtime.Scheme) {
-	// TODO: add iam.dippynark.co.uk group
 	utilruntime.Must(iamv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(admissionv1beta1.AddToScheme(scheme))
 	utilruntime.Must(admissionregistrationv1beta1.AddToScheme(scheme))

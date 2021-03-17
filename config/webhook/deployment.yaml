@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook
+  namespace: system
+  labels:
+    control-plane: webhook
+spec:
+  selector:
+    matchLabels:
+      control-plane: webhook
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: webhook
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - command:
+        - /webhook
+        args:
+        - --tls-cert-file=/etc/serving-cert/tls.crt
+        - --tls-private-key-file=/etc/serving-cert/tls.key
+        image: webhook:latest
+        name: webhook
+        resources:
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/serving-cert
+          name: cert
+          readOnly: true
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert
