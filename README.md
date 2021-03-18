@@ -108,4 +108,9 @@ EOF
 
 # Approve AccessRequest as manager
 kubectl patch accessrequests.iam.dippynark.co.uk developer --as manager --type=merge -p '{"spec":{"approved":true}}'
+
+# Cleanup
+kubectl delete rolebinding access-request-approver:manager access-request-creator:developer cluster-admin
+kubectl delete role access-request-approver access-request-creator
+kubectl delete accessrequest developer
 ```
