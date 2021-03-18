@@ -35,6 +35,20 @@ spec:
               approved:
                 description: Approved specifies whether the accessrequest has been approved
                 type: boolean
+              attributes:
+                description: Attributes holds contextual information about the accessrequest
+                properties:
+                  approvalTime:
+                    description: Represents time when the accessrequest was approved.
+                    format: date-time
+                    type: string
+                  approvedBy:
+                    description: Signifies who approved the accessrequest
+                    type: string
+                  createdBy:
+                    description: Signifies who created the accessrequest
+                    type: string
+                type: object
               roleRef:
                 description: RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.
                 properties:
@@ -80,13 +94,6 @@ spec:
           status:
             description: AccessRequestStatus defines the observed state of AccessRequest
             properties:
-              approvalTime:
-                description: Represents time when the accessrequest was approved.
-                format: date-time
-                type: string
-              approvedBy:
-                description: Signifies who approved the accessrequest
-                type: string
               completionTime:
                 description: Represents time when the accessrequest was completed. The completion time is only set when the accessrequest is rejected or is approved and the corresponding binding created.
                 format: date-time
@@ -120,13 +127,12 @@ spec:
                   - type
                   type: object
                 type: array
-              createdBy:
-                description: Signifies who created the accessrequest
-                type: string
             type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

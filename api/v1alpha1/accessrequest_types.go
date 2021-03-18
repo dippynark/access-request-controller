@@ -26,16 +26,19 @@ import (
 type AccessRequestSpec struct {
 	// Approved specifies whether the accessrequest has been approved
 	Approved bool `json:"approved,omitempty"`
+
+	// Attributes holds contextual information about the accessrequest
+	Attributes *Attributes `json:"attributes,omitempty"`
+
 	// Subjects holds references to the objects the role applies to.
 	// +optional
 	Subjects []rbacv1.Subject `json:"subjects,omitempty"`
+
 	// RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.
 	RoleRef rbacv1.RoleRef `json:"roleRef"`
 }
 
-// AccessRequestStatus defines the observed state of AccessRequest
-type AccessRequestStatus struct {
-
+type Attributes struct {
 	// Signifies who created the accessrequest
 	CreatedBy string `json:"createdBy,omitempty"`
 
@@ -46,7 +49,10 @@ type AccessRequestStatus struct {
 	// Represents time when the accessrequest was approved.
 	// +optional
 	ApprovalTime *metav1.Time `json:"approvalTime,omitempty"`
+}
 
+// AccessRequestStatus defines the observed state of AccessRequest
+type AccessRequestStatus struct {
 	// Represents time when the accessrequest was completed. The completion time is only set when the
 	// accessrequest is rejected or is approved and the corresponding binding created.
 	// +optional
@@ -60,6 +66,7 @@ type AccessRequestStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // AccessRequest is the Schema for the accessrequests API
 type AccessRequest struct {

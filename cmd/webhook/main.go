@@ -10,8 +10,6 @@ import (
 	v1 "k8s.io/api/admission/v1"
 	"k8s.io/api/admission/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	// TODO: try this library to see if it generates correct json patch
 	// https://github.com/mattbaird/jsonpatch
@@ -30,16 +28,7 @@ func main() {
 	flag.IntVar(&port, "port", 9443, "Secure port that the webhook listens on")
 	flag.Parse()
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", "")
-	if err != nil {
-		panic(err)
-	}
-	clientset, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	http.Handle("/mutate", &serveMutateAccessRequestHandler{clientset: clientset})
+	http.HandleFunc("/mutate", serveMutateAccessRequest)
 	http.HandleFunc("/readyz", func(w http.ResponseWriter, req *http.Request) { w.Write([]byte("ok")) })
 
 	config := Config{
@@ -51,18 +40,14 @@ func main() {
 		Addr:      fmt.Sprintf(":%d", port),
 		TLSConfig: configTLS(config),
 	}
-	err = server.ListenAndServeTLS("", "")
+	err := server.ListenAndServeTLS("", "")
 	if err != nil {
 		panic(err)
 	}
 }
 
-type serveMutateAccessRequestHandler struct {
-	clientset *kubernetes.Clientset
-}
-
-func (h *serveMutateAccessRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	serve(w, r, newDelegateToV1AdmitHandler(h.mutateAccessRequest))
+func serveMutateAccessRequest(w http.ResponseWriter, r *http.Request) {
+	serve(w, r, newDelegateToV1AdmitHandler(mutateAccessRequest))
 }
 
 // admitv1beta1Func handles a v1beta1 admission

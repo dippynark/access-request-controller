@@ -6,7 +6,7 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/onsi/ginkgo v1.15.2
 	github.com/onsi/gomega v1.11.0
-	github.com/spf13/cobra v1.1.3
+	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.21.0-beta.1
 	k8s.io/apimachinery v0.21.0-beta.1
 	k8s.io/client-go v0.21.0-beta.1

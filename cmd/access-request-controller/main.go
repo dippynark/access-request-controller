@@ -31,6 +31,10 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const (
+	leaderElectionID = "accessrequests.iam.dippynark.co.uk"
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -59,7 +63,7 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "5d3fa098.dippynark.co.uk",
+		LeaderElectionID:   leaderElectionID,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

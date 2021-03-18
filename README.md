@@ -3,52 +3,68 @@
 ```sh
 kubebuilder init --domain dippynark.co.uk
 kubebuilder create api --group iam --version v1alpha1 --kind AccessRequest
-kubebuilder create webhook --group iam --version v1alpha1 --kind AccessRequest --defaulting --programmatic-validation
 ```
 
-## API
+## Example
 
-```yaml
-apiVersion: iam.dippynark.co.uk/v1alpha1
-kind: AccessRequest
-metadata:
-  name: developer@org.com:pod-reader
-spec:
-  subjects:
-  - kind: User
-    name: developer@org.com
-    apiGroup: rbac.authorization.k8s.io
-  roleRef:
-    kind: Role
-    name: pod-reader
-    apiGroup: rbac.authorization.k8s.io
-status:
-  createdBy: developer@org.com
-  approvedBy: admin@org.com
-  approvalTime: "2021-02-19T10:40:17Z"
-  completionTime: "2021-02-19T10:40:17Z"
-  conditions:
-  - lastProbeTime: "2021-02-19T10:40:17Z"
-    lastTransitionTime: "2021-02-19T10:40:17Z"
-    status: "True"
-    type: Approved
-  - lastProbeTime: "2021-02-19T10:40:17Z"
-    lastTransitionTime: "2021-02-19T10:40:17Z"
-    status: "True"
-    type: Complete
-```
-
-```yaml
+```sh
+kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: test
+  name: cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: access-request-controller-system
+EOF
+
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: manager
+rules:
+- apiGroups:
+  - iam.dippynark.co.uk
+  resources:
+  - accessrequests
+  verbs:
+  - get
+  - patch
+  - approve
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: manager
 subjects:
 - kind: User
-  name: developer
+  name: manager
   apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
-  name: pod-reader
+  name: manager
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: iam.dippynark.co.uk/v1alpha1
+kind: AccessRequest
+metadata:
+  name: developer
+spec:
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: developer
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: developer
+EOF
+
+kubectl patch accessrequests.iam.dippynark.co.uk developer --type=merge -p '{"spec":{"approved":true}}' --as manager
 ```

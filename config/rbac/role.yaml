@@ -7,6 +7,15 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - list
+  - update
+- apiGroups:
   - iam.dippynark.co.uk
   resources:
   - accessrequests
@@ -26,3 +35,12 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - get
+  - list
+  - watch
