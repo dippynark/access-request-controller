@@ -49,7 +49,8 @@ type AccessRequestReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
 
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, rerr error) {
-	// log := r.Log.WithValues("accessrequest", req.NamespacedName)
+	log := r.Log.WithValues("accessrequest", req.NamespacedName)
+	log.Info("Reconciling")
 
 	// Fetch the accessrequest instance
 	accessRequest := &iamv1alpha1.AccessRequest{}
@@ -82,17 +83,22 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return r.reconcile(ctx, accessRequest)
 }
 
-func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (ctrl.Result, error) {
+func (r *AccessRequestReconciler) approvalAllowed(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (bool, error) {
 
 	// Verify approval permissions
 	sar, err := r.checkAccess(ctx, accessRequest)
 	if err != nil {
-		return ctrl.Result{}, err
+		return false, err
 	}
+
 	if !sar.Status.Allowed || sar.Status.Denied {
-		err := fmt.Errorf("user %s is not allowed to approve accessrequest %s/%s: %s", sar.Spec.User, accessRequest.Namespace, accessRequest.Name, sar.Status.Reason)
-		return ctrl.Result{}, err
+		return false, nil
 	}
+
+	return true, nil
+}
+
+func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (ctrl.Result, error) {
 
 	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -110,6 +116,7 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context, accessR
 }
 
 func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *iamv1alpha1.AccessRequest) (ctrl.Result, error) {
+	log := r.Log.WithValues("accessrequest", fmt.Sprintf("%s/%s", accessRequest.Namespace, accessRequest.Name))
 
 	// Default all conditions to unknown
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
@@ -122,16 +129,28 @@ func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *
 		return ctrl.Result{}, nil
 	}
 
-	// This situation should be ensured by the mutating admission webhook and checked by the
+	// TODO: This situation should be ensured by the mutating admission webhook and checked by the
 	// validating admission webhook
 	if accessRequest.Spec.Attributes == nil || (accessRequest.Spec.Attributes.ApprovedBy == "" || accessRequest.Spec.Attributes.ApprovalTime.IsZero()) {
 		return ctrl.Result{}, errors.New("accessrequest is approved but approvedBy and approvalTime status fields are not set")
 	}
 	accessRequest.Status.Conditions = setConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestApproved, v1.ConditionTrue, "AccessRequestApproved", fmt.Sprintf("AccessRequest approved by %s", accessRequest.Spec.Attributes.ApprovedBy))
 
+	// Verify whether the user who approved the accessrequest is allowed to approve it
+	approvalAllowed, err := r.approvalAllowed(ctx, accessRequest)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if !approvalAllowed {
+		message := fmt.Sprintf("%s is not allowed to approve AccessRequest", accessRequest.Spec.Attributes.ApprovedBy)
+		accessRequest.Status.Conditions = setConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestComplete, v1.ConditionFalse, "ApproverDenied", message)
+		log.Info(message)
+		return ctrl.Result{}, nil
+	}
+
 	// Get or create rolebinding
 	roleBinding := &rbacv1.RoleBinding{}
-	err := r.Get(ctx, types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: accessRequest.Namespace,
 		Name:      accessRequest.Name,
 	}, roleBinding)
@@ -151,6 +170,7 @@ func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *
 
 	// TODO: check rolebinding matches accessrequest specification
 
+	// Set completion time
 	if accessRequest.Status.CompletionTime.IsZero() {
 		currentTime := metav1.Now()
 		accessRequest.Status.CompletionTime = &currentTime
@@ -164,8 +184,7 @@ func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&iamv1alpha1.AccessRequest{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Complete(r)
-
-	// TODO: do we need this?
-	// Owns(&rbacv1.RoleBinding{}).
+	// TODO: watch for roles and rolebindings in case approver becomes able to approve
 }

@@ -61,13 +61,14 @@ func mutateAccessRequest(ar v1.AdmissionReview) *v1.AdmissionResponse {
 		patches = append(patches, fmt.Sprintf(`{"op":"add","path":"/spec/attributes/createdBy","value":"%s"}`, ar.Request.UserInfo.Username))
 	}
 
-	// createdBy attribute is immutable
+	// Ensure createdBy attribute is immutable
+	// TODO: move into validation webhook
 	if ar.Request.Operation == v1.Update || ar.Request.Operation == v1.Delete {
 		if accessRequest.Spec.Attributes == nil ||
 			accessRequest.Spec.Attributes.CreatedBy == "" ||
 			(oldAccessRequest.Spec.Attributes != nil &&
 				accessRequest.Spec.Attributes.CreatedBy != oldAccessRequest.Spec.Attributes.CreatedBy) {
-			err := errors.New("spec.attributes.createdBy field is immutable")
+			err := errors.New("spec.attributes.createdBy is immutable")
 			klog.Error(err)
 			return toV1AdmissionResponse(err)
 		}
