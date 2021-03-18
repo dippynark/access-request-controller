@@ -129,14 +129,15 @@ func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *
 		return ctrl.Result{}, nil
 	}
 
-	// TODO: This situation should be ensured by the mutating admission webhook and checked by the
+	// TODO: This situation should be ensured by the mutating admission webhook and verified by the
 	// validating admission webhook
 	if accessRequest.Spec.Attributes == nil || (accessRequest.Spec.Attributes.ApprovedBy == "" || accessRequest.Spec.Attributes.ApprovalTime.IsZero()) {
 		return ctrl.Result{}, errors.New("accessrequest is approved but approvedBy and approvalTime status fields are not set")
 	}
 	accessRequest.Status.Conditions = setConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestApproved, v1.ConditionTrue, "AccessRequestApproved", fmt.Sprintf("AccessRequest approved by %s", accessRequest.Spec.Attributes.ApprovedBy))
 
-	// Verify whether the user who approved the accessrequest is allowed to approve it
+	// Verify whether the user who approved the accessrequest is allowed to approve it. This should be
+	// validated by the validating webhook but we verify again to here to avoid TOCTOU race conditions
 	approvalAllowed, err := r.approvalAllowed(ctx, accessRequest)
 	if err != nil {
 		return ctrl.Result{}, err
