@@ -14,7 +14,7 @@ make deploy
 ## Example
 
 ```sh
-# Apply RBAC to allow developer to create AccessRequests
+# Allow developer to create AccessRequests
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -26,7 +26,6 @@ rules:
   resources:
   - accessrequests
   verbs:
-  - get
   - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -44,7 +43,7 @@ subjects:
 EOF
 
 # Create AccessRequest as developer
-kubectl apply --as developer -f - <<EOF
+kubectl create --as developer -f - <<EOF
 apiVersion: iam.dippynark.co.uk/v1alpha1
 kind: AccessRequest
 metadata:
@@ -60,7 +59,7 @@ spec:
     name: developer
 EOF
 
-# Apply RBAC to allow access-request-controller to create RoleBinding for developer Role
+# Allow access-request-controller to create RoleBinding for developer Role
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -90,7 +89,7 @@ subjects:
   namespace: access-request-controller-system
 EOF
 
-# Apply RBAC to allow manager to approve AccessRequests
+# Allow manager to approve AccessRequests
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
