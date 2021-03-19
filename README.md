@@ -14,22 +14,6 @@ make deploy
 ## Example
 
 ```sh
-# Apply RBAC to allow access-request-controller to bypass privilege escalation when creating RoleBindings
-kubectl apply -f - <<EOF
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: cluster-admin
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: access-request-controller-system
-EOF
-
 # Apply RBAC to allow developer to create AccessRequests
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
@@ -76,6 +60,36 @@ spec:
     name: developer
 EOF
 
+# Apply RBAC to allow access-request-controller to create RoleBinding for developer Role
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer-role-binder
+rules:
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  verbs:
+  - bind
+  resourceNames:
+  - developer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: developer-role-binder:access-request-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: developer-role-binder
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: access-request-controller-system
+EOF
+
 # Apply RBAC to allow manager to approve AccessRequests
 kubectl apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
@@ -110,7 +124,7 @@ EOF
 kubectl patch accessrequests.iam.dippynark.co.uk developer --as manager --type=merge -p '{"spec":{"approved":true}}'
 
 # Cleanup
-kubectl delete rolebinding access-request-approver:manager access-request-creator:developer cluster-admin
-kubectl delete role access-request-approver access-request-creator
+kubectl delete rolebinding access-request-approver:manager access-request-creator:developer developer-role-binder:access-request-controller
+kubectl delete role access-request-approver access-request-creator developer-role-binder
 kubectl delete accessrequest developer
 ```
