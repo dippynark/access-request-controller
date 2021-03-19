@@ -27,7 +27,9 @@ type AccessRequestSpec struct {
 	// Approved specifies whether the accessrequest has been approved
 	Approved bool `json:"approved,omitempty"`
 
-	// Attributes holds contextual information about the accessrequest
+	// Attributes holds contextual information about the accessrequest. The mutating webhook requires
+	// this field to be a pointer otherwise it cannot decide whether to patch an empty object when
+	// patching attributes
 	Attributes *Attributes `json:"attributes,omitempty"`
 
 	// Subjects holds references to the objects the role applies to.
@@ -45,10 +47,6 @@ type Attributes struct {
 	// Signifies who approved the accessrequest
 	// +optional
 	ApprovedBy string `json:"approvedBy,omitempty"`
-
-	// Represents time when the accessrequest was approved.
-	// +optional
-	ApprovalTime *metav1.Time `json:"approvalTime,omitempty"`
 }
 
 // AccessRequestStatus defines the observed state of AccessRequest

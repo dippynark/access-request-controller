@@ -36,12 +36,8 @@ spec:
                 description: Approved specifies whether the accessrequest has been approved
                 type: boolean
               attributes:
-                description: Attributes holds contextual information about the accessrequest
+                description: Attributes holds contextual information about the accessrequest. The mutating webhook requires this field to be a pointer otherwise it cannot decide whether to patch an empty object when patching attributes
                 properties:
-                  approvalTime:
-                    description: Represents time when the accessrequest was approved.
-                    format: date-time
-                    type: string
                   approvedBy:
                     description: Signifies who approved the accessrequest
                     type: string

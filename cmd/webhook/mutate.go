@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	iamv1alpha1 "github.com/dippynark/access-request-controller/api/v1alpha1"
 	v1 "k8s.io/api/admission/v1"
@@ -40,15 +39,14 @@ func mutateAccessRequest(ar v1.AdmissionReview) *v1.AdmissionResponse {
 		patches = append(patches, `{"op":"add","path":"/spec/attributes","value":{}}`)
 	}
 
-	// Always patch createdBy attribute on create
+	// Patch createdBy attribute on create
 	if ar.Request.Operation == v1.Create {
 		patches = append(patches, fmt.Sprintf(`{"op":"add","path":"/spec/attributes/createdBy","value":"%s"}`, ar.Request.UserInfo.Username))
 	}
 
-	// Patch approval attributes
+	// Patch approvedBy attribute if approved
 	if accessRequest.Spec.Approved {
 		patches = append(patches, fmt.Sprintf(`{"op":"add","path":"/spec/attributes/approvedBy","value":"%s"}`, ar.Request.UserInfo.Username))
-		patches = append(patches, fmt.Sprintf(`{"op":"add","path":"/spec/attributes/approvalTime","value":"%s"}`, metav1.Now().Format(time.RFC3339)))
 	}
 
 	admissionResponse := &v1.AdmissionResponse{Allowed: true}

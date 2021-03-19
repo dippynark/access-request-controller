@@ -131,8 +131,8 @@ func (r *AccessRequestReconciler) reconcile(ctx context.Context, accessRequest *
 
 	// TODO: This situation should be ensured by the mutating admission webhook and verified by the
 	// validating admission webhook
-	if accessRequest.Spec.Attributes == nil || (accessRequest.Spec.Attributes.ApprovedBy == "" || accessRequest.Spec.Attributes.ApprovalTime.IsZero()) {
-		return ctrl.Result{}, errors.New("accessrequest is approved but approvedBy and approvalTime status fields are not set")
+	if accessRequest.Spec.Attributes == nil || accessRequest.Spec.Attributes.ApprovedBy == "" {
+		return ctrl.Result{}, errors.New("accessrequest has been approved but the approvedBy attribute is not set")
 	}
 	accessRequest.Status.Conditions = setConditionStatus(accessRequest.Status.Conditions, iamv1alpha1.AccessRequestApproved, v1.ConditionTrue, "AccessRequestApproved", fmt.Sprintf("AccessRequest approved by %s", accessRequest.Spec.Attributes.ApprovedBy))
 

@@ -57,7 +57,13 @@ func (h *serveValidateAccessRequestHandler) validateAccessRequest(ar v1.Admissio
 
 	// Validate approver
 	if accessRequest.Spec.Approved {
-		sar, err := h.checkAccess(ar.Request.UserInfo.Username, accessRequest)
+		if accessRequest.Spec.Attributes == nil || accessRequest.Spec.Attributes.ApprovedBy == "" {
+			err := fmt.Errorf("AccessRequest %s/%s has been approved but the approvedBy attribute is not set", accessRequest.Namespace, accessRequest.Name)
+			klog.Error(err)
+			return toV1AdmissionResponse(err)
+		}
+
+		sar, err := h.checkAccess(accessRequest.Spec.Attributes.ApprovedBy, accessRequest)
 		if err != nil {
 			klog.Error(err)
 			return toV1AdmissionResponse(err)
