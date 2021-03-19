@@ -1,9 +1,7 @@
 # Access Request Controller
 
-```sh
-kubebuilder init --domain dippynark.co.uk
-kubebuilder create api --group iam --version v1alpha1 --kind AccessRequest
-```
+access-request-controller reconciles the AccessRequest API to facilitate access request flows for a
+Kubernetes cluster.
 
 ## Installation
 
@@ -122,8 +120,19 @@ EOF
 # Approve AccessRequest as manager
 kubectl patch accessrequests.iam.dippynark.co.uk developer --as manager --type=merge -p '{"spec":{"approved":true}}'
 
+# Check AccessRequest status
+kubectl get accessrequests.iam.dippynark.co.uk developer -o yaml
+
+# Verify creation of developer RoleBinding
+kubectl get rolebinding developer
+
 # Cleanup
 kubectl delete rolebinding access-request-approver:manager access-request-creator:developer developer-role-binder:access-request-controller
 kubectl delete role access-request-approver access-request-creator developer-role-binder
 kubectl delete accessrequest developer
 ```
+
+## TODO
+
+- Web UI for developers and managers
+- Cluster API support
